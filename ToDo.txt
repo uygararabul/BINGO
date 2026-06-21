@@ -1,0 +1,4 @@
+Add more goals
+Multi-device
+mutually exclusive goals (might not need this mechanic, just sort it out)
+create other goal lists
