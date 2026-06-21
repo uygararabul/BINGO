@@ -1,3 +1,4 @@
 Add more goals
 Multi-device
 create other goal lists
+find how to make the goal list file seen for any user running the server code
