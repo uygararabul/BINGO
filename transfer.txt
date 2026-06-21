@@ -1,0 +1,8 @@
+    love.graphics.setColor(0.6,0.2,0.2,0.4)
+    love.graphics.rectangle("fill",1033,728,134,48)
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.printf("Quit Bingo",font,1030,736,140, "center")
+
+    elseif X>33 and X<167 and Y>728 and Y<776 then
+        quitConfirm=true
+    end
