@@ -394,7 +394,7 @@ function love.draw()
         love.graphics.printf("NO",Font,620,360,100, "center")
     end
 
-    love.graphics.setColor(0.7,0.7,0.7,1)
+    love.graphics.setColor(0.7,0,0,1)
     love.graphics.rectangle("line",1,1,1198,798)
 
     love.graphics.printf(clientpeer:state(),100,300,200)
