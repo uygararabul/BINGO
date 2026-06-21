@@ -149,12 +149,9 @@ local connected = false
 local recieved = "nothing"
 
 
-function love.load()
-    enethost = enet.host_create("localhost:6750")
-
-    enetclient = enet.host_create()
-    clientpeer = enetclient:connect("localhost:6750")
-end
+enethost = enet.host_create("localhost:6750")
+enetclient = enet.host_create()
+clientpeer = enetclient:connect("localhost:6750")
 
 local function ClientSend()
     enetclient:service(100)
