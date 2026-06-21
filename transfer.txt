@@ -1,8 +1,8 @@
-    love.graphics.setColor(0.6,0.2,0.2,0.4)
-    love.graphics.rectangle("fill",1033,728,134,48)
+    love.graphics.setColor(0,0.4,0,1)
+    love.graphics.rectangle("fill", 1028,310,144,50)
     love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Quit Bingo",font,1030,736,140, "center")
+    love.graphics.printf("Start hosting", font,1030,320,140, "center")
+    love.graphics.printf(status, font,1025,380,150, "center")
 
-    elseif X>33 and X<167 and Y>728 and Y<776 then
-        quitConfirm=true
-    end
+    elseif X>28 and X<172 and Y>310 and Y<360 then
+    hosting=true
