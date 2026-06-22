@@ -21,8 +21,10 @@ local player=1
 local playerCount=2
 local score={0,0,0,0,0,0}
 score[0]=0
+local IPaddress = ""
+local inputIP = ""
+local connecting = false
 local timer=false
-
 local quitConfirm = false
 
 local function round(x,n)
@@ -41,12 +43,28 @@ local goals={"","","","","","","","","","","","","","","","","","","","","","","
 local enet = require "enet"
 local client = enet.host_create()
 local status = ""
+local textTime
 
 local function reset()
     secs, mins, hrs = 0,0,0
     wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
     score={0,0,0,0,0,0}
     score[0]=0
+end
+
+local function connect()
+    IPaddress = inputIP
+    textTime = nil
+    client = enet.host_create()
+    local success, tryPeer = pcall(client.connect, client,IPaddress..":12003")
+    if success then
+        peer = tryPeer
+        peer:timeout(0, 1000, 3000)
+        connecting = true
+    else
+        status = "Invalid IP address"
+    end
+    typingIP = false
 end
 
 function love.update(dt)
@@ -61,14 +79,23 @@ function love.update(dt)
             end
         end
     end
+    if textTime then
+        textTime = textTime + dt
+    end
     if peer then
         local event=client:service()
         while event do
             if event.type == "connect" then
                 status = "Connected to server"
+                connecting = false
             elseif event.type == "disconnect" then
                 peer=nil
-                status="Server Offline"
+                if connecting then
+                    status="Couldn't connect to host"
+                    connecting = false
+                else
+                    status="Server Offline"
+                end
             elseif event.type == "receive" then
                 local datagoal, dataplayer = string.match(event.data, "^ChangeGoal: (%d+),(%d+)")
                 if datagoal and dataplayer then
@@ -102,20 +129,38 @@ function love.update(dt)
     end
 end
 
+love.keyboard.setKeyRepeat(true)
 
 function love.keypressed(key)
+    --changing player with number keys 
     p=tonumber(key)
     if p then
-        error=tostring(success)
         if p>0 and p<playerCount+1 then
             player=p
         end
     end
+    if typingIP then
+        if key == "backspace" then
+            if inputIP ~= "" then
+                inputIP = string.sub(inputIP,1,-2)
+            end
+        elseif key == "return" then
+            connect()
+        end
+    end
 end
 
+function love.textinput(key)
+    if typingIP then
+        inputIP = inputIP..key
+    end
+end
+
+--interactable visual buttons
 function love.mousepressed(X,Y,butt)
     if timer then
-        if X<800 then
+        if X<800 then 
+            --changing the wins on a goal
             if X<cols*160 and Y<rows*160 then
                 i=floor(X/160)+floor(Y/160)*x+1
                 if butt == 1 then
@@ -139,18 +184,22 @@ function love.mousepressed(X,Y,butt)
             X=X-1000
             if X>33 and X<167 and Y>728 and Y<776 then
                 quitConfirm=true
-            elseif X>28 and X<172 and Y>310 and Y<360 then
+            elseif X>28 and X<172 and Y>310 and Y<363 then
                 if not peer then
-                    client = enet.host_create()
-                    peer = client:connect("192.168.1.85:12003")
-                    peer:timeout(0, 1000, 3000)
-                    status = "Enter Host IPv4: "
+                    status = "Enter Host IPv4: "  
+                    if typingIP then
+                        connect()
+                    end                  
                 else
                     peer:disconnect()
                     client:flush()
                     peer = nil
                     status="Disconnected"
                 end
+            end
+            if X>15 and X<185 and Y>420 and Y<450 then
+                typingIP = true
+                textTime = 0
             end
         end
         if quitConfirm then
@@ -175,6 +224,7 @@ function love.mousepressed(X,Y,butt)
                 for n=1,playerCount do
                     if Y>120+80*n and Y<170+80*n then
                         player=n
+                        break
                     end
                 end
             end
@@ -183,6 +233,8 @@ function love.mousepressed(X,Y,butt)
 end
 
 function love.draw()
+
+    --drawing the bingo board
     for i=1,x do
         for j=1,y do
             local c=colours[wins[(i-1)*5+j]]
@@ -199,6 +251,7 @@ function love.draw()
         end
     end
 
+    --separation lines
     love.graphics.setColor(0.5,0.5,0.5,1)
     for i=1,y-1 do
         love.graphics.line(0,160*(i),800,160*(i))
@@ -209,6 +262,7 @@ function love.draw()
 
     love.graphics.line(1000,0,1000,800)
 
+    --list of players and scores and currently selected player
     for n=1,playerCount do
         local c=colours[n]
         love.graphics.setColor(c[1],c[2],c[3],0.4)
@@ -221,27 +275,27 @@ function love.draw()
         love.graphics.printf(score[n],Font,860, 120+80*n+4,80,"center")
     end
 
+    --timer
     love.graphics.setColor(1,1,1,0.1)
     love.graphics.rectangle("fill",822,728,156,48)
     if timer then love.graphics.setColor(0.1,1,0.3,1) else love.graphics.setColor(0,0.5,1,1) end
     love.graphics.printf(hrs..":"..string.format("%02d", mins)..":"..string.format("%05.2f", secs),minim,831,741,140,"center")
-    
+
+    --file of goals list
     love.graphics.printf("Current goal list: ".."[goalsFile]",font,1020,140,160,"center")
 
+    --quit button
     love.graphics.setColor(0.6,0.2,0.2,0.4)
     love.graphics.rectangle("fill",1033,728,134,48)
     love.graphics.setColor(1,1,1,1)
     love.graphics.printf("Quit Bingo",font,1030,736,140, "center")
     
+    --connect to host buttons
     if not peer then
         love.graphics.setColor(0,0.4,0,1)
         love.graphics.rectangle("fill", 1028,310,144,50)
         love.graphics.setColor(1,1,1,1)
         love.graphics.printf("Connect", font,1030,320,140, "center")
-        if status=="Enter Host IPv4: " then
-            love.graphics.setColor(1,1,1,1)
-            love.graphics.rectangle("line",1015,360,170,25)
-        end
     else
         love.graphics.setColor(0.4,0,0,1)
         love.graphics.rectangle("fill", 1028,310,144,50)
@@ -249,7 +303,26 @@ function love.draw()
         love.graphics.printf("Disconnect", font,1030,320,140, "center")
     end
     love.graphics.printf(status, font,1025,380,150, "center")
+    if status=="Enter Host IPv4: " then
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.rectangle("line",1015,420,170,33)
+        if typingIP then
+            if textTime % 1 < 0.5 then
+                love.graphics.printf(inputIP,font,1020,420,175)
+            else
+                love.graphics.printf(inputIP.."_",font,1020,420,175)
+            end
+        else
+            love.graphics.setColor(0.5,0.5,0.5,1)
+            love.graphics.printf("Click to type",font,1020,420,175)
+            love.graphics.setColor(1,1,1,1)
+        end
+        if connecting then
+            love.graphics.printf("Connecting...",font,1015,450,175)
+        end
+    end
 
+    --grey out sidebar when running
     if timer then
         love.graphics.setColor(1,1,1,0.1)
         love.graphics.rectangle("fill",1001,0,200,800)
