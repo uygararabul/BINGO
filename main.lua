@@ -73,11 +73,12 @@ local function ServerListen()
             event = server:service()
         end
     end
-end 
-
+end
 
 local function loadFileToString(filename)
-    local file, err = io.open(filename, "r")
+    local binary_dir = arg[0]:match("(.*[/\\])") or ""
+    local csv_path = binary_dir..filename..".csv"
+    local file, err = io.open(csv_path, "r")
     if not file then
         error("Failed to open file '" .. filename .. "'. Error: " .. tostring(err))
     end
@@ -104,8 +105,7 @@ local function csvTo1DTable(csv_string)
 end
 
 local goalsFile = "SilksongAllGoals"
-local target_file = "C:/Users/user/Desktop/BINGO/BINGO/SilksongAllGoals.csv"
-local success, csv_raw_string = pcall(loadFileToString, target_file)
+local success, csv_raw_string = pcall(loadFileToString, goalsFile)
 local allGoals = csvTo1DTable(csv_raw_string)
 local numGoals = #allGoals
 
