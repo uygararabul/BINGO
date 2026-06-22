@@ -36,14 +36,45 @@ local function round(x,n)
 end
 
 local function DIV(x,y) return floor(x/y) end
-
 local function mod(x,y) mo=round((x/y-DIV(x,y))*y,0) if mo==0 then return y end return mo end
 
 
+local enet = require "enet"
+local json = require "json"
 
-for i=1,x*y do
-    table.insert(wins,0)
-end
+local server = nil
+local connectedClients = {}
+
+--Server side listening to client events
+local function ServerListen()
+    if server then 
+        local event = server:service()
+        while event do
+            if event.type == "connect" then
+                connectedClients[event.peer]=tostring(event.peer):match("(%d+%.%d+):")
+                event.peer:timeout(0,1000,3000)
+            elseif event.type == "disconnect" then
+                connectedClients[event.peer]=nil
+            elseif event.type == "receive" then
+                local datagoal, dataplayer = string.match(event.data, "^ChangeGoal: (%d+),(%d+)")
+                if datagoal and dataplayer then
+                    datagoal, dataplayer = tonumber(datagoal), tonumber(dataplayer)
+                    score[wins[datagoal]] = score[wins[datagoal]] - 1
+                    wins[datagoal] = dataplayer
+                    score[dataplayer] = score[dataplayer] + 1
+                    server:broadcast("ChangeGoal: "..datagoal..","..dataplayer)
+                end
+                if event.data == "ToggleTimer" then 
+                    timer = not timer
+                    server:broadcast("ToggleTimer")
+                    server:broadcast("CurrentTime: "..tostring(hrs)..","..tostring(mins)..","..tostring(secs))
+                end
+            end
+            event = server:service()
+        end
+    end
+end 
+
 
 local function loadFileToString(filename)
     local file, err = io.open(filename, "r")
@@ -73,30 +104,14 @@ local function csvTo1DTable(csv_string)
 end
 
 local goalsFile = "SilksongAllGoals"
-local target_file = "C:/Users/uygar/stuffs/love/BINGO/"..goalsFile..".csv"
+local target_file = "C:/Users/user/Desktop/BINGO/BINGO/SilksongAllGoals.csv"
 local success, csv_raw_string = pcall(loadFileToString, target_file)
 local allGoals = csvTo1DTable(csv_raw_string)
 local numGoals = #allGoals
 
+local goals={"","","","","","","","","","","","","","","","","","","","","","","","",""}
+
 --extracting range goals into a value
-
-
-
-
-local goals={}
-
-while #goals<x*y do
-    local trialGoal = allGoals[random(numGoals)]
-    local good=true
-    for i=1,#goals do
-        if trialGoal==goals[i] then
-            good=false
-            break
-        end
-    end
-    if good then table.insert(goals,trialGoal) end
-end
-
 local function extractRange()
     for i=1,x*y do
         local str = goals[i]
@@ -119,7 +134,16 @@ local function extractRange()
     end
 end
 
-extractRange() 
+
+local function reset()
+    wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+    score={0,0,0,0,0,0}
+    score[0]=0
+    secs,mins,hrs=0,0,0
+    if server then
+        server:broadcast("Reset")
+    end
+end
 
 local function rerollGoals()
     local goalEntry = 0
@@ -138,39 +162,18 @@ local function rerollGoals()
         end
     end
     extractRange()
-    wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
-    score={0,0,0,0,0,0}
-    score[0]=0
-    secs,mins,hrs=0,0,0
-end
-
-local enet = require "enet"
-local connected = false
-local recieved = "nothing"
-
-
-enethost = enet.host_create("localhost:6750")
-enetclient = enet.host_create()
-clientpeer = enetclient:connect("localhost:6750")
-
-local function ClientSend()
-    enetclient:service(100)
-    clientpeer:send("hi")
-end
-
-local function SenderListen()
-    hostevent = enetclient:service(100)
-    if hostevent then
-        print("Server message detected type: "..hostevent.type)
-        if hostevent.type == "connect" then
-            connected = true
-        end
-        if hostevent.type == "recieve" then
-            recieved = "Recieved message "..hostevent.data..hostevent.peer
-        end
+    reset()
+    if server then
+        server:broadcast("Prepare for goals")
+        server:broadcast(json.encode(goals))
     end
 end
 
+
+
+
+
+--Updates timer and listens to client events
 function love.update(dt)
     if timer then
         secs = secs + dt
@@ -181,10 +184,12 @@ function love.update(dt)
                 hrs=hrs+1
                 mins=mins-60
             end
+            if server then
+                server:broadcast("CurrentTime: "..tostring(hrs)..","..tostring(mins)..","..tostring(secs))
+            end
         end
     end
-    ClientSend()
-    SenderListen()
+    ServerListen()
 end
 
 
@@ -207,16 +212,18 @@ function love.mousepressed(X,Y,butt)
             if X<cols*160 and Y<rows*160 then
                 i=floor(X/160)+floor(Y/160)*x+1
                 if butt == 1 then
-                    if wins[i]~=player then
-                        if wins[i]~=0 then
-                            score[wins[i]]=score[wins[i]]-1
-                        end
-                        wins[i] = player
-                        score[player]=score[player]+1
+                    score[wins[i]]=score[wins[i]]-1
+                    wins[i] = player
+                    score[player]=score[player]+1
+                    if server then
+                        server:broadcast("ChangeGoal: "..i..","..wins[i])
                     end
                 elseif butt==2 then
                     score[wins[i]] = score[wins[i]]-1
                     wins[i] = 0
+                    if server then
+                        server:broadcast("ChangeGoal: "..i..","..wins[i])
+                    end
                 end
             end
         end
@@ -226,9 +233,24 @@ function love.mousepressed(X,Y,butt)
             if Y>40 and Y<100 then
                 cols = floor(X/66.67)+3
                 rows = floor(X/66.67)+3
-            elseif Y>650 and Y<700 then
+            elseif X>28 and X<172 and Y>310 and Y<360 then
+                if not server then
+                    server = enet.host_create("*:12003")
+                else 
+                    for peer,_ in pairs(connectedClients) do
+                        peer:disconnect()
+                    end
+                    server:broadcast("ServerShutdown")
+                    server:flush()
+                    server:destroy()
+                    server = nil
+                    connectedClients = {}
+                end
+            elseif X>42 and X<158 and Y>562 and Y<610 then
+                reset()
+            elseif X>42 and X<158 and Y>634 and Y<704 then 
                 rerollConfirm=true
-            elseif Y>720 and Y<770 then
+            elseif X>33 and X<167 and Y>728 and Y<776 then
                 quitConfirm=true
             end
         end
@@ -260,16 +282,25 @@ function love.mousepressed(X,Y,butt)
             if Y<160 then
                 Y=Y-40
                 playerCount = 1+floor(X/66.67)+3*floor(Y/60)
-            elseif Y>728 and Y<776 then
-                if X>22 and X<178 then
-                    timer = not timer
+                if server then 
+                    server:broadcast("PlayerCount: ".. playerCount)
                 end
-            elseif Y>200 and Y<700 then
-                if X>60 and X<140 then
-                    for n=1,playerCount do
-                        if Y>120+80*n and Y<170+80*n then
-                            player=n
-                        end
+            elseif X>22 and X<178 and Y>728 and Y<776 then
+                if butt == 1 then
+                    timer = not timer
+                    if server then
+                        server:broadcast("ToggleTimer")
+                    end
+                elseif butt==2 and not timer then
+                    hrs,mins,secs=0,0,0
+                    if server then
+                        server:broadcast("CurrentTime: "..tostring(hrs)..","..tostring(mins)..","..tostring(secs))
+                    end
+                end
+            elseif X>60 and X<140 and Y>200 and Y<700 then
+                for n=1,playerCount do
+                    if Y>120+80*n and Y<170+80*n then
+                        player=n
                     end
                 end
             end
@@ -289,7 +320,6 @@ function love.draw()
                 love.graphics.rectangle("fill",160*(j-1),160*(i-1),160,160)
                 love.graphics.setColor(1,1,1,1)
                 love.graphics.printf(goals[(i-1)*5+j],font,160*(j-1)+4,160*(i-1)+4,147,"center")
-                --love.graphics.printf(wins[(i-1)*5+j],font,160*(j-1)+3,160*(i-1),154,"left")
             else 
                 love.graphics.setColor(0.15,0.15,0.15,0.4)
                 love.graphics.rectangle("fill",160*(j-1),160*(i-1),160,160)
@@ -350,15 +380,39 @@ function love.draw()
     
     love.graphics.printf("Current goal list: "..goalsFile,font,1020,140,160,"center")
 
-    love.graphics.setColor(0.6,0.4,0.6,0.4)
-    love.graphics.rectangle("fill",1030,650,140,50)
+    love.graphics.setColor(0.2,0.2,0.6,0.4)
+    love.graphics.rectangle("fill",1042,562,116,48)
     love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Reroll Goals",font,1030,659,140, "center")
+    love.graphics.printf("Reset",font,1050,570,100, "center")
+
+    love.graphics.setColor(0.6,0.4,0.6,0.4)
+    love.graphics.rectangle("fill",1042,634,116,70)
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.printf("Generate Goals",font,1050,638,100, "center")
 
     love.graphics.setColor(0.6,0.2,0.2,0.4)
-    love.graphics.rectangle("fill",1030,720,140,50)
+    love.graphics.rectangle("fill",1033,728,134,48)
     love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Quit Bingo",font,1030,729,140, "center")
+    love.graphics.printf("Quit Bingo",font,1030,736,140, "center")
+
+    if not server then
+        love.graphics.setColor(0,0.4,0,1)
+        love.graphics.rectangle("fill", 1028,310,144,50)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.printf("Start hosting", font,1030,320,140, "center")
+    else
+        love.graphics.setColor(0.4,0,0,1)
+        love.graphics.rectangle("fill", 1028,310,144,50)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.printf("Stop hosting", font,1030,320,140, "center")
+        love.graphics.print("Clients:", font, 1025,380)
+        local c=0
+        for peer,tag in pairs(connectedClients) do
+            c=c+1
+            love.graphics.print(tag, font,1025,380+25*c)
+        end
+    end
+
 
     if timer then
         love.graphics.setColor(1,1,1,0.1)
@@ -373,7 +427,7 @@ function love.draw()
         love.graphics.setColor(0,0.6,0,1)
         love.graphics.rectangle("fill", 620,350,100,60)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("REROLL GOALS?",FONT,450,280,300, "center")
+        love.graphics.printf("GENERATE GOALS?",FONT,350,280,500, "center")
         love.graphics.printf("YES",Font,480,360,100, "center")
         love.graphics.printf("NO",Font,620,360,100, "center")
     end
@@ -394,5 +448,4 @@ function love.draw()
     love.graphics.setColor(0.7,0.7,0.7,1)
     love.graphics.rectangle("line",1,1,1198,798)
 
-    love.graphics.printf(clientpeer:state(),100,300,200)
 end
