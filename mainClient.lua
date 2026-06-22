@@ -233,7 +233,6 @@ function love.mousepressed(X,Y,butt)
 end
 
 function love.draw()
-
     --drawing the bingo board
     for i=1,x do
         for j=1,y do
@@ -280,9 +279,6 @@ function love.draw()
     love.graphics.rectangle("fill",822,728,156,48)
     if timer then love.graphics.setColor(0.1,1,0.3,1) else love.graphics.setColor(0,0.5,1,1) end
     love.graphics.printf(hrs..":"..string.format("%02d", mins)..":"..string.format("%05.2f", secs),minim,831,741,140,"center")
-
-    --file of goals list
-    love.graphics.printf("Current goal list: ".."[goalsFile]",font,1020,140,160,"center")
 
     --quit button
     love.graphics.setColor(0.6,0.2,0.2,0.4)
