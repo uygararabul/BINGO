@@ -42,6 +42,13 @@ local enet = require "enet"
 local client = enet.host_create()
 local status = ""
 
+local function reset()
+    secs, mins, hrs = 0,0,0
+    wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+    score={0,0,0,0,0,0}
+    score[0]=0
+end
+
 function love.update(dt)
     if timer then
         secs = secs + dt
@@ -104,13 +111,6 @@ function love.keypressed(key)
             player=p
         end
     end
-end
-
-local function reset()
-    secs, mins, hrs = 0,0,0
-    wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
-    score={0,0,0,0,0,0}
-    score[0]=0
 end
 
 function love.mousepressed(X,Y,butt)
