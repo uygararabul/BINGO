@@ -23,8 +23,10 @@ local score={0,0,0,0,0,0}
 score[0]=0
 local timer=false
 
+local resetConfirm = false
 local rerollConfirm = false
 local quitConfirm = false
+local typingGoalsFile = false
 
 local error = ""
 
@@ -75,21 +77,10 @@ local function ServerListen()
     end
 end
 
-local function loadFileToString(filename)
-    local binary_dir = arg[0]:match("(.*[/\\])") or ""
-    local csv_path = binary_dir..filename..".csv"
-    local file, err = io.open(csv_path, "r")
-    if not file then
-        error("Failed to open file '" .. filename .. "'. Error: " .. tostring(err))
-    end
-    local content = file:read("*a")
-    file:close()
-    return content
-end
-
-local function csvTo1DTable(csv_string)
+local function loadFileToAllGoals(filename)
+    filename = filename..".csv"
     local list = {}
-    for line in csv_string:gmatch("[^\r\n]+") do
+    for line in love.filesystem.lines(filename) do
         -- Strip surrounding CSV quotes if present
         if line:sub(1, 1) == '"' and line:sub(-1, -1) == '"' then
             line = line:sub(2, -2)
@@ -104,10 +95,21 @@ local function csvTo1DTable(csv_string)
     return list
 end
 
-local goalsFile = "SilksongAllGoals"
-local success, csv_raw_string = pcall(loadFileToString, goalsFile)
-local allGoals = csvTo1DTable(csv_raw_string)
-local numGoals = #allGoals
+local fileStatus = ""
+local goalsFile = ""
+local fileSuccess, allGoals
+local numGoals
+local textTime
+local inputFile = ""
+
+local function getFile(file)
+    fileSuccess, allGoals = pcall(loadFileToAllGoals, file)
+    if fileSuccess then
+        numGoals = #allGoals
+    else
+        fileStatus = "File not found"
+    end
+end 
 
 local goals={"","","","","","","","","","","","","","","","","","","","","","","","",""}
 
@@ -133,7 +135,6 @@ local function extractRange()
         end
     end
 end
-
 
 local function reset()
     wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
@@ -169,18 +170,14 @@ local function rerollGoals()
     end
 end
 
-
-
-
-
 --Updates timer and listens to client events
 function love.update(dt)
     if timer then
-        secs = secs + dt
-        if secs>60 then
+        secs = secs + dt*3
+        if secs>=60 then
             mins = mins+1
             secs=secs-60
-            if mins>60 then
+            if mins>=60 then
                 hrs=hrs+1
                 mins=mins-60
             end
@@ -189,20 +186,40 @@ function love.update(dt)
             end
         end
     end
+    if textTime then
+        textTime = textTime + dt
+    end
     ServerListen()
 end
 
+love.keyboard.setKeyRepeat(true)
 
 function love.keypressed(key)
+    --changing player with number keys 
     p=tonumber(key)
     if p then
-        error=tostring(success)
         if p>0 and p<playerCount+1 then
             player=p
         end
     end
+    if typingGoalsFile then
+        if key == "backspace" then
+            if inputFile ~= "" then
+                inputFile = string.sub(inputFile,1,-2)
+            end
+        elseif key == "return" then
+            goalsFile = inputFile
+            typingGoalsFile = false
+            getFile(goalsFile)
+        end
+    end
 end
 
+function love.textinput(key)
+    if typingGoalsFile then
+        inputFile = inputFile..key
+    end
+end
 
 --MOUSE
 
@@ -230,10 +247,14 @@ function love.mousepressed(X,Y,butt)
     else
         if X>1000 and X<=1200 then
             X=X-1000
+            if X>15 and X<185 and Y>160 and Y<193 then
+                typingGoalsFile = true
+                textTime = 0
+            end
             if Y>40 and Y<100 then
                 cols = floor(X/66.67)+3
                 rows = floor(X/66.67)+3
-            elseif X>28 and X<172 and Y>310 and Y<360 then
+            elseif X>28 and X<172 and Y>473 and Y<523 then
                 if not server then
                     server = enet.host_create("*:12003")
                 else 
@@ -246,22 +267,37 @@ function love.mousepressed(X,Y,butt)
                     server = nil
                     connectedClients = {}
                 end
-            elseif X>42 and X<158 and Y>562 and Y<610 then
-                reset()
-            elseif X>42 and X<158 and Y>634 and Y<704 then 
-                rerollConfirm=true
-            elseif X>33 and X<167 and Y>728 and Y<776 then
-                quitConfirm=true
             end
-        end
-        if rerollConfirm then
-            if Y>350 and Y<410 then
-                if X>480 and X<580 then
-                    rerollGoals()
-                    rerollConfirm = false
-                elseif X>620 and X<720 then
-                    rerollConfirm = false
+            if not rerollConfirm then
+                if X>42 and X<158 and Y>226 and Y<296 then 
+                    rerollConfirm=true
                 end
+            else
+                if Y>236 and Y<286 then
+                    if X>22 and X<92 then
+                        rerollGoals()
+                        rerollConfirm = false
+                    elseif X>108 and X<178 then
+                        rerollConfirm = false
+                    end
+                end
+            end
+            if not resetConfirm then
+                if X>42 and X<158 and Y>320 and Y<368 then
+                    resetConfirm = true
+                end
+            else
+                if Y>320 and Y<368 then
+                    if X>22 and X<92 then
+                        reset()
+                        resetConfirm = false
+                    elseif X>108 and X<178 then
+                        resetConfirm = false
+                    end
+                end
+            end
+            if X>33 and X<167 and Y>728 and Y<776 then
+                quitConfirm=true
             end
         end
         if quitConfirm then
@@ -378,17 +414,57 @@ function love.draw()
     love.graphics.setColor(0.8,0.8,0.8,1)
     love.graphics.rectangle("line",1001+(rows-3)*65.67+1,41,63.67,58)
     
-    love.graphics.printf("Current goal list: "..goalsFile,font,1020,140,160,"center")
+    love.graphics.printf("Current Goal list: ",font,1020,126,160,"center")
+    if not fileSuccess then
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.rectangle("line",1015,160,170,33)
+        if typingGoalsFile then
+            if textTime % 1 < 0.5 then
+                love.graphics.printf(inputFile,font,1020,160,175)
+            else
+                love.graphics.printf(inputFile.."_",font,1020,160,175)
+            end
+        else
+            love.graphics.setColor(0.5,0.5,0.5,1)
+            love.graphics.printf("Click to type",font,1020,160,175)
+            love.graphics.setColor(1,1,1,1)
+        end
+    else
+        love.graphics.printf(goalsFile,font,1020,160,160,"center")
+    end
+    if fileStatus then
+        love.graphics.printf(fileStatus,font,1020,160,160,"center")
+    end
 
-    love.graphics.setColor(0.2,0.2,0.6,0.4)
-    love.graphics.rectangle("fill",1042,562,116,48)
-    love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Reset",font,1050,570,100, "center")
+    if not resetConfirm then
+        love.graphics.setColor(0.2,0.2,0.6,0.4)
+        love.graphics.rectangle("fill",1042,320,116,48)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.printf("Reset",font,1050,328,100, "center")
+    else
+        love.graphics.setColor(0.2,0.8,0.4,0.4)
+        love.graphics.rectangle("fill",1022,320,70,48)
+        love.graphics.setColor(0.8,0.2,0.4,0.4)
+        love.graphics.rectangle("fill",1108,320,70,48)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.printf("Yes",Font,1022,324,70, "center")
+        love.graphics.printf("No",Font,1108,324,70, "center")
+    end
 
-    love.graphics.setColor(0.6,0.4,0.6,0.4)
-    love.graphics.rectangle("fill",1042,634,116,70)
-    love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Generate Goals",font,1050,638,100, "center")
+    if not rerollConfirm then
+        love.graphics.setColor(0.6,0.4,0.6,0.4)
+        love.graphics.rectangle("fill",1042,226,116,70)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.printf("Generate Goals",font,1050,230,100, "center")
+    else 
+        love.graphics.setColor(0.2,1,0.2,0.4)
+        love.graphics.rectangle("fill",1022,236,70,50)
+        love.graphics.setColor(0.8,0.4,0.6,0.4)
+        love.graphics.rectangle("fill",1108,236,70,50)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.printf("Yes",Font,1022,240,70, "center")
+        love.graphics.printf("No",Font,1108,240,70, "center")
+    end
 
     love.graphics.setColor(0.6,0.2,0.2,0.4)
     love.graphics.rectangle("fill",1033,728,134,48)
@@ -397,19 +473,19 @@ function love.draw()
 
     if not server then
         love.graphics.setColor(0,0.4,0,1)
-        love.graphics.rectangle("fill", 1028,310,144,50)
+        love.graphics.rectangle("fill", 1028,473,144,50)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Start hosting", font,1030,320,140, "center")
+        love.graphics.printf("Start hosting", font,1030,483,140, "center")
     else
         love.graphics.setColor(0.4,0,0,1)
-        love.graphics.rectangle("fill", 1028,310,144,50)
+        love.graphics.rectangle("fill", 1028,473,144,50)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Stop hosting", font,1030,320,140, "center")
-        love.graphics.print("Clients:", font, 1025,380)
+        love.graphics.printf("Stop hosting", font,1030,483,140, "center")
+        love.graphics.print("Clients:", font, 1025,530)
         local c=0
         for peer,tag in pairs(connectedClients) do
             c=c+1
-            love.graphics.print(tag, font,1025,380+25*c)
+            love.graphics.print(tag, font,1025,530+23*c)
         end
     end
 
@@ -417,19 +493,6 @@ function love.draw()
     if timer then
         love.graphics.setColor(1,1,1,0.1)
         love.graphics.rectangle("fill",1001,0,200,800)
-    end
-
-    if rerollConfirm then
-        love.graphics.setColor(0.2,0.1,0.2,0.9)
-        love.graphics.rectangle("fill",0,0,1200,800)
-        love.graphics.setColor(0.6,0,0,1)
-        love.graphics.rectangle("fill", 480,350,100,60)
-        love.graphics.setColor(0,0.6,0,1)
-        love.graphics.rectangle("fill", 620,350,100,60)
-        love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("GENERATE GOALS?",FONT,350,280,500, "center")
-        love.graphics.printf("YES",Font,480,360,100, "center")
-        love.graphics.printf("NO",Font,620,360,100, "center")
     end
 
     if quitConfirm then
