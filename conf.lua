@@ -1,6 +1,6 @@
 function love.conf(t)
-    t.window.title = "bingo"
-    t.window.icon = "bingo.png"
+    t.window.title = "BINGO"
+    t.window.icon = "BINGO.png"
     t.window.vsync = 1
     t.window.height = 800
     t.window.width = 1200
