@@ -108,6 +108,14 @@ function love.update(dt)
                 if datahrs and datamins and datasecs then
                     hrs, mins, secs = tonumber(datahrs), tonumber(datamins), tonumber(datasecs)
                 end
+                local datarows = string.match(event.data, "^Rows: (%d+)")
+                if datarows then 
+                    rows = tonumber(datarows)
+                end
+                local datacols = string.match(event.data, "^Cols: (%d+)")
+                if datacols then 
+                    cols = tonumber(datacols)
+                end
                 if event.data=="ToggleTimer" then
                     timer = not timer
                 elseif event.data=="ServerShutdown" then
