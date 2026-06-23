@@ -173,7 +173,7 @@ end
 --Updates timer and listens to client events
 function love.update(dt)
     if timer then
-        secs = secs + dt*3
+        secs = secs + dt
         if secs>=60 then
             mins = mins+1
             secs=secs-60
@@ -248,14 +248,21 @@ function love.mousepressed(X,Y,butt)
     else
         if X>1000 and X<=1200 then
             X=X-1000
-            if X>15 and X<185 and Y>160 and Y<193 then
+            if X>15 and X<185 and Y>220 and Y<253 then
                 typingGoalsFile = true
                 textTime = 0
                 fileSuccess = false
             end
             if Y>40 and Y<100 then
-                cols = floor(X/66.67)+3
                 rows = floor(X/66.67)+3
+                if server then
+                    server:broadcast("Rows: "..rows)
+                end
+            elseif Y>100 and Y<160 then
+                cols = floor(X/66.67)+3
+                if server then
+                    server:broadcast("Cols: "..cols)
+                end
             elseif X>28 and X<172 and Y>473 and Y<523 then
                 if not server then
                     server = enet.host_create("*:12003")
@@ -271,11 +278,11 @@ function love.mousepressed(X,Y,butt)
                 end
             end
             if not rerollConfirm then
-                if X>42 and X<158 and Y>216 and Y<286 and fileSuccess then 
+                if X>42 and X<158 and Y>276 and Y<346 and fileSuccess then 
                     rerollConfirm=true
                 end
             else
-                if Y>220 and Y<270 then
+                if Y>280 and Y<330 then
                     if X>22 and X<92 then
                         rerollGoals()
                         rerollConfirm = false
@@ -285,11 +292,11 @@ function love.mousepressed(X,Y,butt)
                 end
             end
             if not resetConfirm then
-                if X>42 and X<158 and Y>305 and Y<353 then
+                if X>42 and X<158 and Y>365 and Y<413 then
                     resetConfirm = true
                 end
             else
-                if Y>305 and Y<353 then
+                if Y>365 and Y<413 then
                     if X>22 and X<92 then
                         reset()
                         resetConfirm = false
@@ -406,77 +413,85 @@ function love.draw()
     love.graphics.printf(hrs..":"..string.format("%02d", mins)..":"..string.format("%05.2f", secs),minim,831,741,140,"center")
 
     love.graphics.setColor(1,1,1,1)
-    love.graphics.print("Board Size:",font,1050,5)
+    love.graphics.print("Board Dimensions:",font,1017,5)
     for i=1,3 do
-        love.graphics.setColor(0.15,0.15,0.15,1)
-        love.graphics.rectangle("line",1001+(i-1)*65.67+2,40,65.67,60)
-        love.graphics.setColor(1,1,1,1)
-        love.graphics.printf((i+2).."x"..(i+2),Font,1000+(i-1)*66.67+16,49,40)
+        for j=0,1 do
+            love.graphics.setColor(0.15,0.15,0.15,1)
+            love.graphics.rectangle("line",1001+(i-1)*65.67+2,40+60*j,65.67,60)
+            love.graphics.setColor(1,1,1,1)
+            love.graphics.printf(i+2,Font,1003+(i-1)*64,49+60*j,66.67,"center")
+        end
     end
+    love.graphics.setColor(0.5,0.5,0.5,1)
+    love.graphics.line(1000,100,1200,100)
     love.graphics.setColor(0.8,0.8,0.8,1)
+    love.graphics.line(1090,90,1110,110)
+    love.graphics.line(1090,110,1110,90)
     love.graphics.rectangle("line",1001+(rows-3)*65.67+1,41,63.67,58)
+    love.graphics.rectangle("line",1001+(cols-3)*65.67+1,101,63.67,58)
 
     love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Current Goal list: ",font,1020,126,160,"center")
+    love.graphics.printf("Current Goal list: ",font,1020,186,160,"center")
     if not fileSuccess then
+        love.graphics.setColor(0.8,0.8,0.8,1)
+        love.graphics.rectangle("line",1015,220,170,33)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.rectangle("line",1015,160,170,33)
         if typingGoalsFile then
             if textTime % 1 < 0.5 then
-                love.graphics.print(inputFile,font,1020,160)
+                love.graphics.print(inputFile,font,1020,220)
             else
-                love.graphics.print(inputFile.."_",font,1020,160)
+                love.graphics.print(inputFile.."_",font,1020,220)
             end
         else
             love.graphics.setColor(0.5,0.5,0.5,1)
-            love.graphics.printf("Click to type",font,1020,160,175)
+            love.graphics.printf("Click to type",font,1020,220,175)
             love.graphics.setColor(1,1,1,1)
         end
     else
         love.graphics.setColor(0.3,1,0.7,1)
-        love.graphics.printf(goalsFile,font,1012,160,175,"center")
+        love.graphics.printf(goalsFile,font,1012,220,175,"center")
     end
     if fileStatus then
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf(fileStatus,font,1020,160,175,"center")
+        love.graphics.printf(fileStatus,font,1020,220,175,"center")
     end
 
     if not resetConfirm then
         love.graphics.setColor(0.2,0.2,0.6,0.4)
-        love.graphics.rectangle("fill",1042,305,116,48)
+        love.graphics.rectangle("fill",1042,365,116,48)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Reset",font,1050,313,100, "center")
+        love.graphics.printf("Reset",font,1050,373,100, "center")
     else
         love.graphics.setColor(0.2,0.8,0.4,0.4)
-        love.graphics.rectangle("fill",1022,305,70,48)
+        love.graphics.rectangle("fill",1022,365,70,48)
         love.graphics.setColor(0.8,0.2,0.4,0.4)
-        love.graphics.rectangle("fill",1108,305,70,48)
+        love.graphics.rectangle("fill",1108,365,70,48)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Yes",Font,1022,309,70,"center")
-        love.graphics.printf("No",Font,1108,309,70,"center")
+        love.graphics.printf("Yes",Font,1022,369,70,"center")
+        love.graphics.printf("No",Font,1108,369,70,"center")
     end
 
     if not rerollConfirm then
         if fileSuccess then
             love.graphics.setColor(0.6,0.4,0.6,0.4)
-            love.graphics.rectangle("fill",1042,216,116,70)
+            love.graphics.rectangle("fill",1042,276,116,70)
             love.graphics.setColor(1,1,1,1)
-            love.graphics.printf("Generate Goals",font,1050,220,100, "center")
+            love.graphics.printf("Generate Goals",font,1050,280,100, "center")
         else
             love.graphics.setColor(0.6,0.4,0.6,0.2)
-            love.graphics.rectangle("fill",1042,216,116,70)
+            love.graphics.rectangle("fill",1042,276,116,70)
             love.graphics.setColor(0.5,0.5,0.5,1)
-            love.graphics.printf("Generate Goals",font,1050,220,100, "center")
+            love.graphics.printf("Generate Goals",font,1050,280,100, "center")
         end
         
     else 
         love.graphics.setColor(0.2,1,0.2,0.4)
-        love.graphics.rectangle("fill",1022,220,70,50)
+        love.graphics.rectangle("fill",1022,280,70,50)
         love.graphics.setColor(0.8,0.4,0.6,0.4)
-        love.graphics.rectangle("fill",1108,220,70,50)
+        love.graphics.rectangle("fill",1108,280,70,50)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Yes",Font,1022,224,70, "center")
-        love.graphics.printf("No",Font,1108,224,70, "center")
+        love.graphics.printf("Yes",Font,1022,284,70, "center")
+        love.graphics.printf("No",Font,1108,284,70, "center")
     end
 
     love.graphics.setColor(0.6,0.2,0.2,0.4)
@@ -523,5 +538,4 @@ function love.draw()
 
     love.graphics.setColor(0.7,0.7,0.7,1)
     love.graphics.rectangle("line",1,1,1198,798)
-
 end
