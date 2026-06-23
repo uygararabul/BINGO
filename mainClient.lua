@@ -328,7 +328,7 @@ function love.draw()
 
     --grey out sidebar when running
     if timer then
-        love.graphics.setColor(1,1,1,0.1)
+        love.graphics.setColor(0.2,0.2,0.2,0.6)
         love.graphics.rectangle("fill",1001,0,200,800)
     end
 
