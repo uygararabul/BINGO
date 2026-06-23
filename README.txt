@@ -1,3 +1,5 @@
+To use the project you should download BINGOwin.zip. You will also see the rest of this README inside that zip folder.
+
 The main executable can be run on its own. The client version is, as you might guess, to be used for other devices to connect to the server running the main executable.
 
 To connect devices start hosting on the server and on the client you need to enter the IPv4 adress of the server.
