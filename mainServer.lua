@@ -155,6 +155,8 @@ local function reset()
     secs,mins,hrs=0,0,0
     if server then
         server:broadcast("Reset")
+        server:broadcast("Prepare for goals")
+        server:broadcast(json.encode(goals))
     end
 end
 
@@ -176,10 +178,6 @@ local function rerollGoals()
     end
     extractRange()
     reset()
-    if server then
-        server:broadcast("Prepare for goals")
-        server:broadcast(json.encode(goals))
-    end
 end
 
 --Updates timer and listens to client events
