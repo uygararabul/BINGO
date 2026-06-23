@@ -77,19 +77,31 @@ local function ServerListen()
     end
 end
 
+local function processLine(line)
+    -- Strip surrounding CSV quotes if present
+    if line:sub(1, 1) == '"' and line:sub(-1, -1) == '"' then
+        line = line:sub(2, -2)
+    end
+    -- Unescape double quotes ("" becomes ")
+    line = line:gsub('""', '"')
+
+    if line ~= "" then return line end
+end
+
+
 local function loadFileToAllGoals(filename)
     filename = filename..".csv"
     local list = {}
-    for line in love.filesystem.lines(filename) do
-        -- Strip surrounding CSV quotes if present
-        if line:sub(1, 1) == '"' and line:sub(-1, -1) == '"' then
-            line = line:sub(2, -2)
+    if love.filesystem.isFused() then
+        local filepath = love.filesystem.getSourceBaseDirectory().."/"..filename
+        for line in io.lines(filepath) do
+            local goal = processLine(line)
+            if goal then table.insert(list,goal) end
         end
-        -- Unescape double quotes ("" becomes ")
-        line = line:gsub('""', '"')
-        -- Add to our 1D table
-        if line ~= "" then
-            table.insert(list, line)
+    else
+        for line in love.filesystem.lines(filename) do
+            local goal = processLine(line)
+            if goal then table.insert(list,goal) end
         end
     end
     return list
@@ -107,7 +119,7 @@ local function getFile(file)
     if fileSuccess then
         numGoals = #allGoals
     else
-        love.window.showMessageBox("File not found","'"..file.."' not found. Select a csv file from the folder BINGO such as SilksongAllGoals and type the name without .csv","error")
+        love.window.showMessageBox("File not found","'"..file.."' not found. Select a csv file from the folder BINGO such as SilksongAll and type the name without .csv","error")
     end
 end 
 
@@ -503,12 +515,12 @@ function love.draw()
         love.graphics.setColor(0,0.4,0,1)
         love.graphics.rectangle("fill", 1028,473,144,50)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Start hosting", font,1030,483,140, "center")
+        love.graphics.printf("Start Hosting", font,1030,483,140, "center")
     else
         love.graphics.setColor(0.4,0,0,1)
         love.graphics.rectangle("fill", 1028,473,144,50)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Stop hosting", font,1030,483,140, "center")
+        love.graphics.printf("Stop Hosting", font,1030,483,140, "center")
         love.graphics.print("Clients:", font, 1025,530)
         local c=0
         for peer,tag in pairs(connectedClients) do
