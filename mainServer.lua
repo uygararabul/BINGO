@@ -17,6 +17,7 @@ local hrs =0
 local x,y=5,5
 local rows,cols=5,5
 local wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+local goals={"","","","","","","","","","","","","","","","","","","","","","","","",""}
 local player=1
 local playerCount=2
 local score={0,0,0,0,0,0}
@@ -46,36 +47,6 @@ local json = require "json"
 
 local server = nil
 local connectedClients = {}
-
---Server side listening to client events
-local function ServerListen()
-    if server then 
-        local event = server:service()
-        while event do
-            if event.type == "connect" then
-                connectedClients[event.peer]=tostring(event.peer):match("(%d+%.%d+):")
-                event.peer:timeout(0,1000,3000)
-            elseif event.type == "disconnect" then
-                connectedClients[event.peer]=nil
-            elseif event.type == "receive" then
-                local datagoal, dataplayer = string.match(event.data, "^ChangeGoal: (%d+),(%d+)")
-                if datagoal and dataplayer then
-                    datagoal, dataplayer = tonumber(datagoal), tonumber(dataplayer)
-                    score[wins[datagoal]] = score[wins[datagoal]] - 1
-                    wins[datagoal] = dataplayer
-                    score[dataplayer] = score[dataplayer] + 1
-                    server:broadcast("ChangeGoal: "..datagoal..","..dataplayer)
-                end
-                if event.data == "ToggleTimer" then 
-                    timer = not timer
-                    server:broadcast("ToggleTimer")
-                    server:broadcast("CurrentTime: "..tostring(hrs)..","..tostring(mins)..","..tostring(secs))
-                end
-            end
-            event = server:service()
-        end
-    end
-end
 
 local function processLine(line)
     -- Strip surrounding CSV quotes if present
@@ -123,8 +94,6 @@ local function getFile(file)
     end
 end 
 
-local goals={"","","","","","","","","","","","","","","","","","","","","","","","",""}
-
 --extracting range goals into a value
 local function extractRange()
     for i=1,x*y do
@@ -147,6 +116,7 @@ local function extractRange()
         end
     end
 end
+
 
 local function reset()
     wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
@@ -179,6 +149,41 @@ local function rerollGoals()
     extractRange()
     reset()
 end
+
+
+--Server side listening to client events
+local function ServerListen()
+    if server then 
+        local event = server:service()
+        while event do
+            if event.type == "connect" then
+                connectedClients[event.peer]=tostring(event.peer):match("(%d+%.%d+):")
+                event.peer:timeout(0,1000,3000)
+                server:broadcast("Rows: "..rows)
+                server:broadcast("Cols: "..cols)
+                reset()
+            elseif event.type == "disconnect" then
+                connectedClients[event.peer]=nil
+            elseif event.type == "receive" then
+                local datagoal, dataplayer = string.match(event.data, "^ChangeGoal: (%d+),(%d+)")
+                if datagoal and dataplayer then
+                    datagoal, dataplayer = tonumber(datagoal), tonumber(dataplayer)
+                    score[wins[datagoal]] = score[wins[datagoal]] - 1
+                    wins[datagoal] = dataplayer
+                    score[dataplayer] = score[dataplayer] + 1
+                    server:broadcast("ChangeGoal: "..datagoal..","..dataplayer)
+                end
+                if event.data == "ToggleTimer" then 
+                    timer = not timer
+                    server:broadcast("ToggleTimer")
+                    server:broadcast("CurrentTime: "..tostring(hrs)..","..tostring(mins)..","..tostring(secs))
+                end
+            end
+            event = server:service()
+        end
+    end
+end
+
 
 --Updates timer and listens to client events
 function love.update(dt)
