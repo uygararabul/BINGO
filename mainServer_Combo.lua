@@ -18,7 +18,10 @@ local hrs =0
 local x,y=5,5
 local rows,cols=5,5
 local wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+local partwins_1={{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}}
+local partwins_2={{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}}
 local goals={"","","","","","","","","","","","","","","","","","","","","","","","",""}
+local goals2={"","","","","","","","","","","","","","","","","","","","","","","","",""}
 local player=1
 local playerCount=2
 local score={0,0,0,0,0,0}
@@ -32,6 +35,8 @@ local typingGoalsFile = false
 
 local typingGoalsFile2 = false
 
+local goals_W = 160
+local goals_H = 160
 local typing_Y = 220
 local typing_Y2 = typing_Y+50
 local connect_Y = typing_Y2+253
@@ -121,9 +126,9 @@ local function getFile(file,num)
 end 
 
 --extracting range goals into a value
-local function extractRange()
+local function extractRange(input)
     for i=1,x*y do
-        local str = goals[i]
+        local str = input[i]
 
         -- Find the minimum and maximum numbers
         local minStr, maxStr = string.match(str, "_range_%s+(%d+)%-(%d+)")
@@ -138,42 +143,47 @@ local function extractRange()
             
             -- Replace "*range* X-Y" with just the rolled number
             local newStr = string.gsub(str, "_range_%s+%d+%-%d+", rolledValue)
-            goals[i]=newStr
+            input[i]=newStr
         end
     end
+    return input
 end
 
 
 local function reset()
     wins={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+    partwins_1={{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}}
+    partwins_2={{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}}
     score={0,0,0,0,0,0}
     score[0]=0
     secs,mins,hrs=0,0,0
     if server then
         server:broadcast("Reset")
         server:broadcast("Prepare for goals")
-        server:broadcast(json.encode(goals))
+        server:broadcast(json.encode({goals,goals2}))
     end
 end
 
-local function rerollGoals()
+local function rerollGoals(all)
     local goalEntry = 0
+    local outgoals = {}
     while goalEntry<x*y do
-        local trialGoal = allGoals[random(numGoals)].."\n + \n"..allGoals2[random(numGoals2)]
+        local trialGoal = all[random(#all)]
         local good=true
-        for j=1,#goals do
-            if trialGoal==goals[j] then
+        for j=1,#outgoals do
+            if trialGoal==outgoals[j] then
                 good=false
                 break
             end
         end
         if good then 
             goalEntry=goalEntry+1
-            goals[goalEntry]=trialGoal 
+            outgoals[goalEntry]=trialGoal 
         end
     end
-    extractRange()
+    outgoals = extractRange(outgoals)
     reset()
+    return outgoals
 end
 
 
@@ -191,13 +201,41 @@ local function ServerListen()
             elseif event.type == "disconnect" then
                 connectedClients[event.peer]=nil
             elseif event.type == "receive" then
-                local datagoal, dataplayer = string.match(event.data, "^ChangeGoal: (%d+),(%d+)")
-                if datagoal and dataplayer then
-                    datagoal, dataplayer = tonumber(datagoal), tonumber(dataplayer)
-                    score[wins[datagoal]] = score[wins[datagoal]] - 1
-                    wins[datagoal] = dataplayer
-                    score[dataplayer] = score[dataplayer] + 1
-                    server:broadcast("ChangeGoal: "..datagoal..","..dataplayer)
+                local datagoal, datapart, dataplayer = string.match(event.data, "^ChangeGoal: (%d+),(%d+),(%d+)")
+                if datagoal and datapart and dataplayer then
+                    datagoal, datapart, dataplayer = tonumber(datagoal), tonumber(datapart), tonumber(dataplayer)
+                    server:broadcast("ChangeGoal: "..datagoal..","..datapart..","..dataplayer)
+                    if datapart==1 then
+                        if dataplayer ~=0 then
+                            partwins_1[datagoal][dataplayer] = true
+                            if partwins_2[datagoal][dataplayer] then
+                                score[wins[datagoal]]=score[wins[datagoal]]-1
+                                wins[datagoal] = dataplayer
+                                score[dataplayer]=score[dataplayer]+1
+                            end
+                        else
+                            partwins_1[datagoal][dataplayer] = false
+                            if partwins_2[i][player] then
+                                score[wins[datagoal]]=score[wins[datagoal]]-1
+                                wins[datagoal] = 0
+                            end
+                        end
+                    elseif datapart==2 then
+                        if dataplayer ~=0 then
+                            partwins_2[datagoal][dataplayer] = true
+                            if partwins_1[datagoal][dataplayer] then
+                                score[wins[datagoal]]=score[wins[datagoal]]-1
+                                wins[datagoal] = dataplayer
+                                score[dataplayer]=score[dataplayer]+1
+                            end
+                        else
+                            partwins_2[datagoal][dataplayer] = false
+                            if partwins_1[i][player] then
+                                score[wins[datagoal]]=score[wins[datagoal]]-1
+                                wins[datagoal] = 0
+                            end
+                        end
+                    end
                 end
                 if event.data == "ToggleTimer" then 
                     timer = not timer
@@ -285,23 +323,53 @@ end
 
 function love.mousepressed(X,Y,butt)
     if timer then
-        if X<800 then
-            if X<cols*160 and Y<rows*160 then
-                i=floor(X/160)+floor(Y/160)*x+1
-                if butt == 1 then
-                    score[wins[i]]=score[wins[i]]-1
-                    wins[i] = player
-                    score[player]=score[player]+1
-                    if server then
-                        server:broadcast("ChangeGoal: "..i..","..wins[i])
+        if X<goals_W*5 then
+            if X<cols*goals_W and Y<rows*goals_H then
+                i=floor(X/goals_W)+floor(Y/goals_H)*x+1
+                if Y%goals_H < goals_H/2 then
+                    if butt == 1 then
+                        partwins_1[i][player] = true
+                        if server then
+                            server:broadcast("ChangeGoal: "..i..",1,"..player)
+                        end
+                        if partwins_2[i][player] then
+                            score[wins[i]]=score[wins[i]]-1
+                            wins[i] = player
+                            score[player]=score[player]+1
+                        end
+                    elseif butt==2 then
+                        partwins_1[i][player] = false
+                        if partwins_2[i][player] then
+                            score[wins[i]] = score[wins[i]]-1
+                            wins[i] = 0
+                        end
+                        if server then
+                            server:broadcast("ChangeGoal: "..i..",1,0")
+                        end
                     end
-                elseif butt==2 then
-                    score[wins[i]] = score[wins[i]]-1
-                    wins[i] = 0
-                    if server then
-                        server:broadcast("ChangeGoal: "..i..","..wins[i])
+                else
+                    if butt == 1 then
+                        partwins_2[i][player] = true
+                        if server then
+                            server:broadcast("ChangeGoal: "..i..",2,"..player)
+                        end
+                        if partwins_1[i][player] then
+                            score[wins[i]]=score[wins[i]]-1
+                            wins[i] = player
+                            score[player]=score[player]+1
+                        end
+                    elseif butt==2 then
+                        partwins_2[i][player] = false
+                        if partwins_1[i][player] then
+                            score[wins[i]] = score[wins[i]]-1
+                            wins[i] = 0
+                        end
+                        if server then
+                            server:broadcast("ChangeGoal: "..i..",2,0")
+                        end
                     end
                 end
+
             end
         end
     else
@@ -352,7 +420,8 @@ function love.mousepressed(X,Y,butt)
             else
                 if Y>reroll_Y+4 and Y<reroll_Y+54 then
                     if X>22 and X<92 then
-                        rerollGoals()
+                        goals = rerollGoals(allGoals)
+                        goals2 =rerollGoals(allGoals2)
                         rerollConfirm = false
                     elseif X>108 and X<178 then
                         rerollConfirm = false
@@ -427,25 +496,63 @@ end
 function love.draw()
     for i=1,x do
         for j=1,y do
-            local c=colours[wins[(i-1)*5+j]]
+            local win_c=colours[wins[(i-1)*5+j]]
             if i<=cols and j<=rows then
-                love.graphics.setColor(c[1],c[2],c[3],0.4)
-                love.graphics.rectangle("fill",160*(j-1),160*(i-1),160,160)
+                if wins[(i-1)*5+j] ~= 0 then
+                    love.graphics.setColor(win_c[1],win_c[2],win_c[3],0.4)
+                    love.graphics.rectangle("fill",goals_W*(j-1),goals_H*(i-1),goals_W,goals_H)
+                else
+                    local numpwins1 = 0
+                    print(partwins_1[(i-1)*5+j])
+                    for _,w in ipairs(partwins_1[(i-1)*5+j]) do
+                        if w then
+                            numpwins1 = numpwins1 + 1
+                        end
+                    end
+                    local m = 0
+                    for k,w in ipairs(partwins_1[(i-1)*5+j]) do
+                        if w then
+                            local pwin_c=colours[k]
+                            love.graphics.setColor(pwin_c[1],pwin_c[2],pwin_c[3],0.3)
+                            love.graphics.rectangle("fill",goals_W*(j-1+m/numpwins1),goals_H*(i-1),goals_W/numpwins1,goals_H/2)
+                            m = m+1
+                        end
+                    end
+                    local numpwins2 = 0
+                    for _,w in ipairs(partwins_2[(i-1)*5+j]) do
+                        if w then
+                            numpwins2 = numpwins2 + 1
+                        end
+                    end
+                    m = 0
+                    for k,w in ipairs(partwins_2[(i-1)*5+j]) do
+                        if w then
+                            local pwin_c=colours[k]
+                            love.graphics.setColor(pwin_c[1],pwin_c[2],pwin_c[3],0.3)
+                            love.graphics.rectangle("fill",goals_W*(j-1 + m/numpwins2),goals_H*(i-0.5),goals_W/numpwins2,goals_H/2)
+                            m = m+1
+                        end
+                    end
+                end
+
                 love.graphics.setColor(1,1,1,1)
-                love.graphics.printf(goals[(i-1)*5+j],smol_font,160*(j-1)+4,160*(i-1)+4,147,"center")
+                love.graphics.printf(goals[(i-1)*5+j],smol_font,goals_W*(j-1)+4,goals_H*(i-1)+4,152,"center")
+                love.graphics.printf(goals2[(i-1)*5+j],smol_font,goals_W*(j-1)+4,goals_H*(i-0.5)+4,152,"center")
+                love.graphics.setColor(0.3,0.3,0.3,1)
+                love.graphics.line(goals_W*(j-1), goals_H*(i-0.5), goals_W*(j), goals_H*(i-0.5))
             else 
-                love.graphics.setColor(0.15,0.15,0.15,0.4)
-                love.graphics.rectangle("fill",160*(j-1),160*(i-1),160,160)
+                love.graphics.setColor(0.15,0.15,0.15,0.4)                
+                love.graphics.rectangle("fill",goals_W*(j-1),goals_H*(i-1),goals_W,goals_H)
             end
         end
     end
 
-    love.graphics.setColor(0.5,0.5,0.5,1)
+    love.graphics.setColor(0.6,0.6,0.6,1)
     for i=1,y-1 do
-        love.graphics.line(0,160*(i),800,160*(i))
+        love.graphics.line(0,goals_H*(i),goals_W*5,goals_H*(i))
     end
     for i=1,x do
-        love.graphics.line(160*(i)-1,0,160*(i)-1,800)
+        love.graphics.line(goals_W*(i)-1,0,goals_W*(i)-1,goals_H*5)
     end
 
     love.graphics.line(1000,0,1000,800)
@@ -564,7 +671,7 @@ function love.draw()
     end
 
     if not rerollConfirm then
-        if fileSuccess then
+        if fileSuccess and fileSuccess2 then
             love.graphics.setColor(0.6,0.4,0.6,0.4)
             love.graphics.rectangle("fill",1042,reroll_Y,116,70)
             love.graphics.setColor(1,1,1,1)
