@@ -3,6 +3,7 @@ love.graphics.setLineWidth(2)
 math.randomseed(os.time())
 local random,floor = math.random,math.floor
 local minim=love.graphics.newFont("minimal.ttf",18)
+local smol_font=love.graphics.newFont("EBGaramond.ttf", 18)
 local font=love.graphics.newFont("EBGaramond.ttf", 22)
 local Font=love.graphics.newFont("EBGaramond.ttf", 28)
 local FONT=love.graphics.newFont("EBGaramond.ttf", 36)
@@ -29,10 +30,13 @@ local rerollConfirm = false
 local quitConfirm = false
 local typingGoalsFile = false
 
+local typingGoalsFile2 = false
+
 local typing_Y = 220
-local connect_Y = typing_Y+253
-local reroll_Y = typing_Y+56
-local reset_Y = typing_Y+145
+local typing_Y2 = typing_Y+50
+local connect_Y = typing_Y2+253
+local reroll_Y = typing_Y2+56
+local reset_Y = typing_Y2+145
 local quit_Y = typing_Y+508
 
 local error = ""
@@ -91,12 +95,28 @@ local numGoals
 local textTime
 local inputFile = ""
 
-local function getFile(file)
-    fileSuccess, allGoals = pcall(loadFileToAllGoals, file)
-    if fileSuccess then
-        numGoals = #allGoals
-    else
-        love.window.showMessageBox("File not found","'"..file.."' not found. Select a csv file from the folder BINGO such as SilksongAll and type the name without .csv","error")
+local fileStatus2 = ""
+local goalsFile2 = ""
+local fileSuccess2, allGoals2
+local numGoals2
+local textTime2
+local inputFile2 = ""
+
+local function getFile(file,num)
+    if num == 1 then
+        fileSuccess, allGoals = pcall(loadFileToAllGoals, file)
+        if fileSuccess then
+            numGoals = #allGoals
+        else
+            love.window.showMessageBox("File not found","'"..file.."' not found. Select a csv file from the folder BINGO such as SilksongAll and type the name without .csv","error")
+        end
+    elseif num == 2 then
+        fileSuccess2, allGoals2 = pcall(loadFileToAllGoals, file)
+        if fileSuccess2 then
+            numGoals2 = #allGoals2
+        else
+            love.window.showMessageBox("File not found","'"..file.."' not found. Select a csv file from the folder BINGO such as SilksongAll and type the name without .csv","error")
+        end
     end
 end 
 
@@ -139,7 +159,7 @@ end
 local function rerollGoals()
     local goalEntry = 0
     while goalEntry<x*y do
-        local trialGoal = allGoals[random(numGoals)]
+        local trialGoal = allGoals[random(numGoals)].."\n + \n"..allGoals2[random(numGoals2)]
         local good=true
         for j=1,#goals do
             if trialGoal==goals[j] then
@@ -210,6 +230,9 @@ function love.update(dt)
     if textTime then
         textTime = textTime + dt
     end
+    if textTime2 then
+        textTime2 = textTime2 + dt
+    end
     ServerListen()
 end
 
@@ -232,7 +255,19 @@ function love.keypressed(key)
             goalsFile = inputFile
             typingGoalsFile = false
             inputFile = ""
-            getFile(goalsFile)
+            getFile(goalsFile,1)
+        end
+    end
+    if typingGoalsFile2 then
+        if key == "backspace" then
+            if inputFile2 ~= "" then
+                inputFile2 = string.sub(inputFile2,1,-2)
+            end
+        elseif key == "return" then
+            goalsFile2 = inputFile2
+            typingGoalsFile2 = false
+            inputFile2 = ""
+            getFile(goalsFile2,2)
         end
     end
 end
@@ -240,6 +275,9 @@ end
 function love.textinput(key)
     if typingGoalsFile then
         inputFile = inputFile..key
+    end
+    if typingGoalsFile2 then
+        inputFile2 = inputFile2..key
     end
 end
 
@@ -273,6 +311,15 @@ function love.mousepressed(X,Y,butt)
                 typingGoalsFile = true
                 textTime = 0
                 fileSuccess = false
+            else
+                typingGoalsFile = false
+            end
+            if X>15 and X<185 and Y>typing_Y2 and Y<typing_Y2+33 then
+                typingGoalsFile2 = true
+                textTime2 = 0
+                fileSuccess2 = false
+            else
+                typingGoalsFile2 = false
             end
             if Y>40 and Y<100 then
                 rows = floor(X/66.67)+3
@@ -385,7 +432,7 @@ function love.draw()
                 love.graphics.setColor(c[1],c[2],c[3],0.4)
                 love.graphics.rectangle("fill",160*(j-1),160*(i-1),160,160)
                 love.graphics.setColor(1,1,1,1)
-                love.graphics.printf(goals[(i-1)*5+j],font,160*(j-1)+4,160*(i-1)+4,147,"center")
+                love.graphics.printf(goals[(i-1)*5+j],smol_font,160*(j-1)+4,160*(i-1)+4,147,"center")
             else 
                 love.graphics.setColor(0.15,0.15,0.15,0.4)
                 love.graphics.rectangle("fill",160*(j-1),160*(i-1),160,160)
@@ -452,21 +499,21 @@ function love.draw()
     love.graphics.rectangle("line",1001+(cols-3)*65.67+1,101,63.67,58)
 
     love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Current Goal list: ",font,1020,typing_Y-14,160,"center")
+    love.graphics.printf("Current Goal lists: ",font,1020,typing_Y-36,160,"center")
     if not fileSuccess then
         love.graphics.setColor(0.8,0.8,0.8,1)
         love.graphics.rectangle("line",1015,typing_Y,170,33)
         love.graphics.setColor(1,1,1,1)
-        if typingGoalsFile then
-            if textTime % 1 < 0.5 then
-                love.graphics.print(inputFile,font,1020,typing_Y)
-            else
-                love.graphics.print(inputFile.."_",font,1020,typing_Y)
-            end
-        else
+        if inputFile == "" and not typingGoalsFile then
             love.graphics.setColor(0.5,0.5,0.5,1)
             love.graphics.printf("Click to type",font,1020,typing_Y,175)
             love.graphics.setColor(1,1,1,1)
+        else
+            if textTime % 1 < 0.5 and typingGoalsFile then
+                love.graphics.print(inputFile.."_",font,1020,typing_Y)
+            else
+                love.graphics.print(inputFile,font,1020,typing_Y)
+            end
         end
     else
         love.graphics.setColor(0.3,1,0.7,1)
@@ -475,6 +522,30 @@ function love.draw()
     if fileStatus then
         love.graphics.setColor(1,1,1,1)
         love.graphics.printf(fileStatus,font,1020,typing_Y,175,"center")
+    end
+
+    if not fileSuccess2 then
+        love.graphics.setColor(0.8,0.8,0.8,1)
+        love.graphics.rectangle("line",1015,typing_Y2,170,33)
+        love.graphics.setColor(1,1,1,1)
+        if inputFile2 == "" and not typingGoalsFile2 then
+            love.graphics.setColor(0.5,0.5,0.5,1)
+            love.graphics.printf("Click to type",font,1020,typing_Y2,175)
+            love.graphics.setColor(1,1,1,1)
+        else
+            if textTime2 % 1 < 0.5 and typingGoalsFile2 then
+                love.graphics.print(inputFile2.."_",font,1020,typing_Y2)
+            else
+                love.graphics.print(inputFile2,font,1020,typing_Y2)
+            end
+        end
+    else
+        love.graphics.setColor(0.3,1,0.7,1)
+        love.graphics.printf(goalsFile2,font,1012,typing_Y2,175,"center")
+    end
+    if fileStatus2 then
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.printf(fileStatus2,font,1020,typing_Y2,175,"center")
     end
 
     if not resetConfirm then
