@@ -29,6 +29,12 @@ local rerollConfirm = false
 local quitConfirm = false
 local typingGoalsFile = false
 
+local typing_Y = 220
+local connect_Y = typing_Y+253
+local reroll_Y = typing_Y+56
+local reset_Y = typing_Y+145
+local quit_Y = typing_Y+508
+
 local error = ""
 
 local function round(x,n)
@@ -263,7 +269,7 @@ function love.mousepressed(X,Y,butt)
     else
         if X>1000 and X<=1200 then
             X=X-1000
-            if X>15 and X<185 and Y>220 and Y<253 then
+            if X>15 and X<185 and Y>typing_Y and Y<typing_Y+33 then
                 typingGoalsFile = true
                 textTime = 0
                 fileSuccess = false
@@ -278,7 +284,7 @@ function love.mousepressed(X,Y,butt)
                 if server then
                     server:broadcast("Cols: "..cols)
                 end
-            elseif X>28 and X<172 and Y>473 and Y<523 then
+            elseif X>28 and X<172 and Y>connect_Y and Y<connect_Y+50 then
                 if not server then
                     server = enet.host_create("*:12003")
                 else 
@@ -293,11 +299,11 @@ function love.mousepressed(X,Y,butt)
                 end
             end
             if not rerollConfirm then
-                if X>42 and X<158 and Y>276 and Y<346 and fileSuccess then 
+                if X>42 and X<158 and Y>reroll_Y and Y<reroll_Y+70 and fileSuccess then 
                     rerollConfirm=true
                 end
             else
-                if Y>280 and Y<330 then
+                if Y>reroll_Y+4 and Y<reroll_Y+54 then
                     if X>22 and X<92 then
                         rerollGoals()
                         rerollConfirm = false
@@ -307,11 +313,11 @@ function love.mousepressed(X,Y,butt)
                 end
             end
             if not resetConfirm then
-                if X>42 and X<158 and Y>365 and Y<413 then
+                if X>42 and X<158 and Y>reset_Y and Y<reset_Y+48 then
                     resetConfirm = true
                 end
             else
-                if Y>365 and Y<413 then
+                if Y>reset_Y and Y<reset_Y+48 then
                     if X>22 and X<92 then
                         reset()
                         resetConfirm = false
@@ -320,7 +326,7 @@ function love.mousepressed(X,Y,butt)
                     end
                 end
             end
-            if X>33 and X<167 and Y>728 and Y<776 then
+            if X>33 and X<167 and Y>quit_Y and Y<quit_Y+48 then
                 quitConfirm=true
             end
         end
@@ -446,89 +452,89 @@ function love.draw()
     love.graphics.rectangle("line",1001+(cols-3)*65.67+1,101,63.67,58)
 
     love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Current Goal list: ",font,1020,186,160,"center")
+    love.graphics.printf("Current Goal list: ",font,1020,typing_Y-14,160,"center")
     if not fileSuccess then
         love.graphics.setColor(0.8,0.8,0.8,1)
-        love.graphics.rectangle("line",1015,220,170,33)
+        love.graphics.rectangle("line",1015,typing_Y,170,33)
         love.graphics.setColor(1,1,1,1)
         if typingGoalsFile then
             if textTime % 1 < 0.5 then
-                love.graphics.print(inputFile,font,1020,220)
+                love.graphics.print(inputFile,font,1020,typing_Y)
             else
-                love.graphics.print(inputFile.."_",font,1020,220)
+                love.graphics.print(inputFile.."_",font,1020,typing_Y)
             end
         else
             love.graphics.setColor(0.5,0.5,0.5,1)
-            love.graphics.printf("Click to type",font,1020,220,175)
+            love.graphics.printf("Click to type",font,1020,typing_Y,175)
             love.graphics.setColor(1,1,1,1)
         end
     else
         love.graphics.setColor(0.3,1,0.7,1)
-        love.graphics.printf(goalsFile,font,1012,220,175,"center")
+        love.graphics.printf(goalsFile,font,1012,typing_Y,175,"center")
     end
     if fileStatus then
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf(fileStatus,font,1020,220,175,"center")
+        love.graphics.printf(fileStatus,font,1020,typing_Y,175,"center")
     end
 
     if not resetConfirm then
         love.graphics.setColor(0.2,0.2,0.6,0.4)
-        love.graphics.rectangle("fill",1042,365,116,48)
+        love.graphics.rectangle("fill",1042,reset_Y,116,48)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Reset",font,1050,373,100, "center")
+        love.graphics.printf("Reset",font,1050,reset_Y+8,100, "center")
     else
         love.graphics.setColor(0.2,0.8,0.4,0.4)
-        love.graphics.rectangle("fill",1022,365,70,48)
+        love.graphics.rectangle("fill",1022,reset_Y,70,48)
         love.graphics.setColor(0.8,0.2,0.4,0.4)
-        love.graphics.rectangle("fill",1108,365,70,48)
+        love.graphics.rectangle("fill",1108,reset_Y,70,48)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Yes",Font,1022,369,70,"center")
-        love.graphics.printf("No",Font,1108,369,70,"center")
+        love.graphics.printf("Yes",Font,1022,reset_Y+4,70,"center")
+        love.graphics.printf("No",Font,1108,reset_Y+4,70,"center")
     end
 
     if not rerollConfirm then
         if fileSuccess then
             love.graphics.setColor(0.6,0.4,0.6,0.4)
-            love.graphics.rectangle("fill",1042,276,116,70)
+            love.graphics.rectangle("fill",1042,reroll_Y,116,70)
             love.graphics.setColor(1,1,1,1)
-            love.graphics.printf("Generate Goals",font,1050,280,100, "center")
+            love.graphics.printf("Generate Goals",font,1050,reroll_Y+4,100, "center")
         else
             love.graphics.setColor(0.6,0.4,0.6,0.2)
-            love.graphics.rectangle("fill",1042,276,116,70)
+            love.graphics.rectangle("fill",1042,reroll_Y,116,70)
             love.graphics.setColor(0.5,0.5,0.5,1)
-            love.graphics.printf("Generate Goals",font,1050,280,100, "center")
+            love.graphics.printf("Generate Goals",font,1050,reroll_Y+4,100, "center")
         end
         
     else 
         love.graphics.setColor(0.2,1,0.2,0.4)
-        love.graphics.rectangle("fill",1022,280,70,50)
+        love.graphics.rectangle("fill",1022,reroll_Y+4,70,50)
         love.graphics.setColor(0.8,0.4,0.6,0.4)
-        love.graphics.rectangle("fill",1108,280,70,50)
+        love.graphics.rectangle("fill",1108,reroll_Y+4,70,50)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Yes",Font,1022,284,70, "center")
-        love.graphics.printf("No",Font,1108,284,70, "center")
+        love.graphics.printf("Yes",Font,1022,reroll_Y+8,70, "center")
+        love.graphics.printf("No",Font,1108,reroll_Y+8,70, "center")
     end
 
     love.graphics.setColor(0.6,0.2,0.2,0.4)
-    love.graphics.rectangle("fill",1033,728,134,48)
+    love.graphics.rectangle("fill",1033,quit_Y,134,48)
     love.graphics.setColor(1,1,1,1)
-    love.graphics.printf("Quit Bingo",font,1030,736,140, "center")
+    love.graphics.printf("Quit Bingo",font,1030,quit_Y+8,140, "center")
 
     if not server then
         love.graphics.setColor(0,0.4,0,1)
-        love.graphics.rectangle("fill", 1028,473,144,50)
+        love.graphics.rectangle("fill", 1028,connect_Y,144,50)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Start Hosting", font,1030,483,140, "center")
+        love.graphics.printf("Start Hosting", font,1030,connect_Y+10,140, "center")
     else
         love.graphics.setColor(0.4,0,0,1)
-        love.graphics.rectangle("fill", 1028,473,144,50)
+        love.graphics.rectangle("fill", 1028,connect_Y,144,50)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.printf("Stop Hosting", font,1030,483,140, "center")
-        love.graphics.print("Clients:", font, 1025,530)
+        love.graphics.printf("Stop Hosting", font,1030,connect_Y+10,140, "center")
+        love.graphics.print("Clients:", font, 1025,connect_Y+57)
         local c=0
         for peer,tag in pairs(connectedClients) do
             c=c+1
-            love.graphics.print(tag, font,1025,530+23*c)
+            love.graphics.print(tag, font,1025,connect_Y+57+23*c)
         end
     end
 
