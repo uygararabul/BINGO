@@ -158,9 +158,11 @@ function love.update(dt)
                 elseif event.data=="ServerShutdown" then
                     peer=nil
                     status="Server Offline"
-                elseif event.data=="Prepare for goals" then
+                elseif event.data=="Prepare for goals 1" then
                     event = client:service()
-                    goals,goals2 = json.decode(event.data)
+                    local decoded = json.decode(event.data)
+                    goals = decoded[1]
+                    goals2 = decoded[2]
                 elseif event.data=="Reset" then
                     reset()
                 end
